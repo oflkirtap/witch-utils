@@ -1,0 +1,135 @@
+#!/bin/sh
+
+set -e
+
+# base ports directory (default /usr/ports/)
+PORTS_DIR="${PORTS_DIR:-/home/pat/personal/projects/witch/testport}"
+
+usage() {
+    printf "Usage: %s <category/port_name> [make|cmake|meson|simple]\n" "$0"
+    printf "Example: %s main/neofetch cmake\n" "$0"
+    exit 1
+}
+
+if [ -z "$1" ]; then
+    usage
+fi
+
+PORT_PATH="$1"
+BUILD_SYS="${2:-simple}"
+
+TARGET_DIR="${PORTS_DIR}/${PORT_PATH}"
+PORT_NAME="$(basename "$PORT_PATH")"
+
+if [ -d "$TARGET_DIR" ]; then
+    printf "Error: Target port directory '%s' already exists.\n" "$TARGET_DIR" >&2
+    exit 1
+fi
+
+printf "Generating Alchemy scroll for '%s' using build system '%s'...\n" "$PORT_PATH" "$BUILD_SYS"
+
+# create port directory
+mkdir -p "$TARGET_DIR"
+
+# metadata files
+touch "$TARGET_DIR/version"
+touch "$TARGET_DIR/depends"
+touch "$TARGET_DIR/description"
+
+# generate build, install, and uninstall scripts based on build system
+case "$BUILD_SYS" in
+    make)
+        cat << 'EOF' > "$TARGET_DIR/build"
+#!/bin/sh
+cd "$(dirname "$0")"
+make PREFIX=/usr/local -j"$(nproc 2>/dev/null || echo 2)"
+EOF
+
+        cat << 'EOF' > "$TARGET_DIR/install"
+#!/bin/sh
+cd "$(dirname "$0")"
+make PREFIX=/usr/local install
+EOF
+
+        cat << 'EOF' > "$TARGET_DIR/uninstall"
+#!/bin/sh
+cd "$(dirname "$0")"
+make PREFIX=/usr/local uninstall
+EOF
+        ;;
+
+    cmake)
+        cat << 'EOF' > "$TARGET_DIR/build"
+#!/bin/sh
+cd "$(dirname "$0")"
+cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local
+cmake --build build -j"$(nproc 2>/dev/null || echo 2)"
+EOF
+
+        cat << 'EOF' > "$TARGET_DIR/install"
+#!/bin/sh
+cd "$(dirname "$0")"
+cmake --install build
+EOF
+
+        cat << 'EOF' > "$TARGET_DIR/uninstall"
+#!/bin/sh
+cd "$(dirname "$0")"
+if [ -f build/install_manifest.txt ]; then
+    while IFS= read -r file || [ -n "$file" ]; do
+        rm -f "$file"
+    done < build/install_manifest.txt
+fi
+EOF
+        ;;
+
+    meson)
+        cat << 'EOF' > "$TARGET_DIR/build"
+#!/bin/sh
+cd "$(dirname "$0")"
+meson setup build --prefix=/usr/local
+ninja -C build
+EOF
+
+        cat << 'EOF' > "$TARGET_DIR/install"
+#!/bin/sh
+cd "$(dirname "$0")"
+ninja -C build install
+EOF
+
+        cat << 'EOF' > "$TARGET_DIR/uninstall"
+#!/bin/sh
+cd "$(dirname "$0")"
+ninja -C build uninstall
+EOF
+        ;;
+
+    simple|*)
+        cat << EOF > "$TARGET_DIR/build"
+#!/bin/sh
+cd "\$(dirname "\$0")"
+gcc -O2 main.c -o "$PORT_NAME"
+EOF
+
+        cat << EOF > "$TARGET_DIR/install"
+#!/bin/sh
+cd "\$(dirname "\$0")"
+TARGET_DEST="/usr/local/bin"
+mkdir -p "\$TARGET_DEST"
+cp -f "$PORT_NAME" "\$TARGET_DEST/$PORT_NAME"
+chmod 0755 "\$TARGET_DEST/$PORT_NAME"
+EOF
+
+        cat << EOF > "$TARGET_DIR/uninstall"
+#!/bin/sh
+cd "\$(dirname "\$0")"
+TARGET_DEST="/usr/local/bin"
+rm -f "\$TARGET_DEST/$PORT_NAME"
+EOF
+        ;;
+esac
+
+# ensure generated scripts are executable
+chmod +x "$TARGET_DIR/build" "$TARGET_DIR/install" "$TARGET_DIR/uninstall"
+
+printf "Successfully created port template at: %s\n" "$TARGET_DIR"
