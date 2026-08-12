@@ -81,7 +81,7 @@ static void switch_alt(int on);
 
 static void on_sigchld(int s){ (void)s; running = 0; }
 
-/* Converts 24-bit RGB hex (0xRRGGBB) to 16-bit XRenderColor components */
+/* converts 24-bit RGB hex (0xRRGGBB) to 16-bit XRenderColor components */
 static void make_xcolor(unsigned long hex, XRenderColor *c) {
     c->red   = ((hex >> 16) & 0xff) * 0x0101;
     c->green = ((hex >> 8)  & 0xff) * 0x0101;
@@ -518,7 +518,7 @@ int main(void) {
     signal(SIGCHLD, on_sigchld);
     spawn_shell();
     xinit();
-    draw(); /* Draw terminal window immediately upon launch */
+    draw(); // draw terminal window immediately upon launch
 
     int xfd = ConnectionNumber(dpy);
     unsigned char readbuf[4096];

@@ -20,12 +20,12 @@ const char *get_base_name(const char *path) {
     return slash ? slash + 1 : path;
 }
 
-// validate a port path against directory traversal and other unsafe forms
+// validate a port path against directory traversal and other forms
 int is_safe_port_name(const char *name) {
     if (!name || name[0] == '\0') return 0;
-    if (name[0] == '/' || name[0] == '.') return 0;   // no absolute or hidden/relative starts
-    if (strstr(name, "..") != NULL) return 0;          // no directory traversal
-    if (strstr(name, "//") != NULL) return 0;           // no empty path components
+    if (name[0] == '/' || name[0] == '.') return 0;      // no absolute or hidden/relative starts
+    if (strstr(name, "..") != NULL) return 0;            // no directory traversal
+    if (strstr(name, "//") != NULL) return 0;            // no empty path components
     if (name[strlen(name) - 1] == '/') return 0;         // no trailing slash
     return 1;
 }
@@ -35,8 +35,7 @@ static void trim_newline(char *s) {
     while (len > 0 && (s[len - 1] == '\n' || s[len - 1] == '\r')) s[--len] = '\0';
 }
 
-// read the first line of a file into buf newline stripped
-// should return 1 on success
+// read the first line of a file into buf, newline stripped. returns 1 on success.
 static int read_first_line(const char *path, char *buf, size_t bufsize) {
     FILE *f = fopen(path, "r");
     if (!f) return 0;
@@ -46,7 +45,7 @@ static int read_first_line(const char *path, char *buf, size_t bufsize) {
     return 1;
 }
 
-// copy a binary file and mark it executable (rwxr-xr-x)
+// copy a binary file and mark it executable 
 int copy_file(const char *src, const char *dst) {
     FILE *in = fopen(src, "rb");
     if (!in) {
@@ -82,7 +81,7 @@ int copy_file(const char *src, const char *dst) {
     return 0;
 }
 
-// read and print a file's contents under a heading
+// read and print a files contents, indented, under a heading
 void print_file_contents(const char *filepath, const char *prefix) {
     FILE *f = fopen(filepath, "r");
     if (!f) return;
@@ -108,7 +107,7 @@ void print_file_contents(const char *filepath, const char *prefix) {
     fclose(f);
 }
 
-// script execution shared by brew / mix / sublimate
+// script execution, shared by brew / mix / sublimate
 
 static int script_exists(const char *dir, const char *script_name) {
     char path[PATH_LEN];
@@ -118,7 +117,7 @@ static int script_exists(const char *dir, const char *script_name) {
 }
 
 // fork chdir into dir and execute ./script_name [extra_arg].
-// returns the childs exit code on normal exit or -1 if it couldnt run
+// returns the childs exit code on normal exit, or -1 if it couldnt run
 // or exited abnormally (killed by a signal, fork/wait failure)
 static int run_script(const char *dir, const char *script_name, const char *extra_arg) {
     pid_t pid = fork();
@@ -152,9 +151,11 @@ static int run_script(const char *dir, const char *script_name, const char *extr
     return -1;
 }
 
-// installed-package library
+// ---------------------------------------------------------------------
+// installed-package bookkeeping
 // each metadata file is named after the installed binary and holds two
-// lines: the installed version, then the source "category/port" path.
+// lines: the installed version, then the source "category/port" path
+// ---------------------------------------------------------------------
 
 static void ensure_db_dir(void) {
     struct stat st;
@@ -173,7 +174,7 @@ static void record_install(const char *base_name, const char *port_name) {
     snprintf(meta_path, sizeof(meta_path), "%s/%s", DB_DIR, base_name);
 
     FILE *f = fopen(meta_path, "w");
-    if (!f) return; // best-effort; bookkeeping shouldnt fail
+    if (!f) return; // best-effort bookkeeping shouldnt fail install
     fprintf(f, "%s\n%s\n", version, port_name);
     fclose(f);
 }
@@ -192,7 +193,10 @@ static void remove_meta(const char *base_name) {
 
 // commands
 
-// brew (build a port from source)
+// forward declaration for transmute_all so transmute_port can use it
+int transmute_all(const char *unused);
+
+// alchemy brew (build a port from source)
 int brew_port(const char *port_name) {
     if (!is_safe_port_name(port_name)) {
         fprintf(stderr, "Error: Invalid or unsafe port path '%s'\n", port_name);
@@ -240,7 +244,7 @@ int brew_port(const char *port_name) {
     return 1;
 }
 
-// mix (install a built port)
+// alchemy mix (install a built port)
 int mix_port(const char *port_name) {
     if (!is_safe_port_name(port_name)) {
         fprintf(stderr, "Error: Invalid or unsafe port path '%s'\n", port_name);
@@ -272,7 +276,7 @@ int mix_port(const char *port_name) {
         return rc > 0 ? rc : 1;
     }
 
-    // fallback: copy the built binary straight into INSTALL_DIR
+    // fallback: copy the built binary straight into install_dir
     char src_binary[PATH_LEN], dest_binary[PATH_LEN];
     snprintf(src_binary, sizeof(src_binary), "%s/%s", target_dir, base_name);
     snprintf(dest_binary, sizeof(dest_binary), "%s/%s", INSTALL_DIR, base_name);
@@ -292,7 +296,7 @@ int mix_port(const char *port_name) {
     return 0;
 }
 
-// study (search ports, or view details on one)
+// alchemy study (search ports, or view details on one)
 int study_port(const char *query) {
     if (!query) query = "";
 
@@ -330,7 +334,7 @@ int study_port(const char *query) {
         }
     }
 
-    // otherwise search every category for a substring match
+    // otherwise, search every category for a substring match
     DIR *dir = opendir(PORTS_DIR);
     if (!dir) {
         perror("Error reading ports directory");
@@ -360,7 +364,7 @@ int study_port(const char *query) {
 
             char installed_version[128];
             const char *marker = lookup_installed_version(port_entry->d_name, installed_version,
-															sizeof(installed_version)) ? " [installed]" : "";
+                                                            sizeof(installed_version)) ? " [installed]" : "";
             printf("  %s/%s%s\n", cat_entry->d_name, port_entry->d_name, marker);
             matches++;
         }
@@ -377,7 +381,7 @@ int study_port(const char *query) {
     return 0;
 }
 
-// sublimate (remove an installed package)
+// alchemy sublimate (remove an installed package)
 int sublimate_port(const char *port_name) {
     if (!is_safe_port_name(port_name)) {
         fprintf(stderr, "Error: Invalid or unsafe port path '%s'\n", port_name);
@@ -402,7 +406,7 @@ int sublimate_port(const char *port_name) {
         return rc > 0 ? rc : 1;
     }
 
-    // default removal: unlink the binary in INSTALL_DIR
+    // default removal: unlink the binary in install_dir
     char installed_path[PATH_LEN];
     snprintf(installed_path, sizeof(installed_path), "%s/%s", INSTALL_DIR, base_name);
 
@@ -416,7 +420,7 @@ int sublimate_port(const char *port_name) {
     return 1;
 }
 
-// catalog (list installed potions)
+// alchemy catalog (list installed potions)
 int list_installed(const char *unused) {
     (void)unused;
 
@@ -459,11 +463,13 @@ int list_installed(const char *unused) {
     return 0;
 }
 
-// transmute (upgrade): rebuilds + reinstalls only when the ports
+// alchemy transmute (upgrade): rebuilds + reinstalls only when the ports
 // tree actually has a newer version than whats currently installed
-// and no it cant upgrade all packages yet
-// maybe later
 int transmute_port(const char *port_name) {
+    if (strcmp(port_name, "all") == 0) {
+        return transmute_all("");
+    }
+
     if (!is_safe_port_name(port_name)) {
         fprintf(stderr, "Error: Invalid or unsafe port path '%s'\n", port_name);
         return 1;
@@ -514,6 +520,49 @@ int transmute_port(const char *port_name) {
     return 0;
 }
 
+// alchemy transmute all (upgrade all packages)
+int transmute_all(const char *unused) {
+    (void)unused;
+    DIR *dir = opendir(DB_DIR);
+    if (!dir) {
+        printf("No packages installed yet.\n");
+        return 0;
+    }
+
+    struct dirent *entry;
+    int count = 0;
+    int success = 0;
+
+    printf("Transmuting all installed packages...\n");
+
+    while ((entry = readdir(dir)) != NULL) {
+        if (entry->d_name[0] == '.') continue;
+
+        char meta_path[PATH_LEN];
+        snprintf(meta_path, sizeof(meta_path), "%s/%s", DB_DIR, entry->d_name);
+
+        char version[128] = "unknown", source[PATH_LEN] = "";
+        FILE *f = fopen(meta_path, "r");
+        if (f) {
+            if (fgets(version, sizeof(version), f)) trim_newline(version);
+            if (fgets(source, sizeof(source), f)) trim_newline(source);
+            fclose(f);
+        }
+
+        if (source[0]) {
+            printf("\n--- Checking %s ---\n", source);
+            if (transmute_port(source) == 0) {
+                success++;
+            }
+            count++;
+        }
+    }
+    closedir(dir);
+
+    printf("\nTransmuted %d/%d package(s) successfully.\n", success, count);
+    return (success == count) ? 0 : 1;
+}
+
 // command dispatch
 
 typedef struct {
@@ -524,12 +573,13 @@ typedef struct {
 } Command;
 
 static const Command COMMANDS[] = {
-    {"brew",      brew_port,      1, "Build a port from source"},
-    {"mix",       mix_port,       1, "Install a built port to " INSTALL_DIR},
-    {"study",     study_port,     0, "Search ports, or view details (no arg = list all)"},
-    {"sublimate", sublimate_port, 1, "Remove an installed package"},
-    {"transmute", transmute_port, 1, "Upgrade a package to the latest version"},
-    {"list",      list_installed, 0, "List installed packages"},
+    {"brew",          brew_port,      1, "Build a port from source"},
+    {"mix",           mix_port,       1, "Install a built port to " INSTALL_DIR},
+    {"study",         study_port,     0, "Search ports, or view details (no arg = list all)"},
+    {"sublimate",     sublimate_port, 1, "Remove an installed package"},
+    {"transmute",     transmute_port, 1, "Upgrade a package to the latest version (or 'all')"},
+    {"transmute-all", transmute_all,  0, "Upgrade all installed packages"},
+    {"list",          list_installed, 0, "List installed packages"},
 };
 #define NUM_COMMANDS (sizeof(COMMANDS) / sizeof(COMMANDS[0]))
 
@@ -537,18 +587,33 @@ void print_usage(const char *prog_name) {
     fprintf(stderr, "Usage: %s <command> [<category>/<port>]\n\n", prog_name);
     fprintf(stderr, "Commands:\n");
     for (size_t i = 0; i < NUM_COMMANDS; i++) {
-        fprintf(stderr, "  %-10s - %s\n", COMMANDS[i].name, COMMANDS[i].description);
+        fprintf(stderr, "  %-14s - %s\n", COMMANDS[i].name, COMMANDS[i].description);
     }
     fprintf(stderr, "\nExample: %s brew main/neofetch\n", prog_name);
 }
 
 int main(int argc, char *argv[]) {
-    if (argc < 2) {
+  if (argc < 2) {
         print_usage(argv[0]);
         return 1;
     }
 
     const char *cmd = argv[1];
+
+    if (strcmp(cmd, "-h") == 0 || strcmp(cmd, "--help") == 0 || strcmp(cmd, "help") == 0) {
+        print_usage(argv[0]);
+        return 0;
+    }
+
+    for (size_t i = 0; i < NUM_COMMANDS; i++) {
+        if (strcmp(cmd, COMMANDS[i].name) != 0) continue;
+
+        if (COMMANDS[i].requires_arg && argc < 3) {
+            fprintf(stderr, "Error: '%s' requires a <category/port> argument.\n", cmd);
+            return 1;
+        }
+
+        const char *cmd = argv[1];
 
     if (strcmp(cmd, "-h") == 0 || strcmp(cmd, "--help") == 0 || strcmp(cmd, "help") == 0) {
         print_usage(argv[0]);
@@ -568,4 +633,5 @@ int main(int argc, char *argv[]) {
     fprintf(stderr, "Unknown alchemy command: %s\n", cmd);
     print_usage(argv[0]);
     return 1;
+	}
 }

@@ -3,7 +3,7 @@
 set -e
 
 # base ports directory (default /usr/ports/)
-PORTS_DIR="${PORTS_DIR:-/home/pat/personal/projects/witch/testport}"
+PORTS_DIR="${PORTS_DIR:-/usr/ports/}"
 
 usage() {
     printf "Usage: %s <category/port_name> [make|cmake|meson|simple]\n" "$0"

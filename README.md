@@ -14,10 +14,4 @@ how to compile:
              - move into /usr/local/bin
 
 last changes:
-updated alchemy - added package metadata
-                - database tracking
-                - working transmute
-                - new list command
-                - enhanced study command
-                - architecture & code optimizations
-                - data-driven command dispatcher
+updated alchemy - added transmute all
